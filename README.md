@@ -120,12 +120,17 @@ gdcli <email> upload <localPath> [options]
 Options:
 - `--name <n>` - Override filename
 - `--folder <folderId>` - Destination folder
+- `--convert <type>` - Convert to Google format: `docs`, `sheets`, or `slides`
 
 Examples:
 ```bash
 gdcli you@gmail.com upload ./report.pdf
 gdcli you@gmail.com upload ./report.pdf --folder 1ABC123 --name "Q4 Report.pdf"
+gdcli you@gmail.com upload ./README.md --convert docs
+gdcli you@gmail.com upload ./data.csv --convert sheets
 ```
+
+**Note:** The `--convert` option uses Google Drive's import feature. Some conversions (notably Markdown to Google Docs with full formatting) work best with Google Workspace accounts. Personal Gmail accounts may have limited conversion support.
 
 ### mkdir
 

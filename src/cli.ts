@@ -45,6 +45,7 @@ DRIVE COMMANDS
       Options:
         --name <n>           Override filename
         --folder <folderId>  Destination folder
+        --convert <type>     Convert to Google format: docs, sheets, or slides
 
   gdcli <email> mkdir <name> [--parent <folderId>]
       Create a folder.
@@ -84,6 +85,7 @@ EXAMPLES
   gdcli you@gmail.com download 1ABC123
   gdcli you@gmail.com download 1ABC123 ./myfile.pdf
   gdcli you@gmail.com upload ./report.pdf --folder 1ABC123
+  gdcli you@gmail.com upload ./README.md --convert docs
   gdcli you@gmail.com mkdir "New Folder" --parent 1ABC123
   gdcli you@gmail.com delete 1ABC123
   gdcli you@gmail.com move 1ABC123 1DEF456
@@ -341,12 +343,14 @@ async function handleUpload(account: string, args: string[]) {
 		options: {
 			name: { type: "string" },
 			folder: { type: "string" },
+			convert: { type: "string" },
 		},
 		allowPositionals: true,
 	});
 
 	const localPath = positionals[0];
-	if (!localPath) error("Usage: <email> upload <localPath> [--name <n>] [--folder <folderId>]");
+	if (!localPath)
+		error("Usage: <email> upload <localPath> [--name <n>] [--folder <folderId>] [--convert docs|sheets|slides]");
 
 	if (!fs.existsSync(localPath)) {
 		error(`File not found: ${localPath}`);
@@ -355,6 +359,7 @@ async function handleUpload(account: string, args: string[]) {
 	const file = await service.upload(account, localPath, {
 		name: values.name,
 		folderId: values.folder,
+		convertTo: values.convert,
 	});
 
 	console.log(`Uploaded: ${file.id}`);
