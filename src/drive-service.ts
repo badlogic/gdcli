@@ -206,15 +206,23 @@ export class DriveService {
 	async upload(
 		email: string,
 		localPath: string,
-		options: { name?: string; folderId?: string; mimeType?: string } = {},
+		options: { name?: string; folderId?: string; mimeType?: string; convertTo?: string } = {},
 	): Promise<DriveFile> {
 		const drive = this.getDriveClient(email);
 
 		const fileName = options.name || path.basename(localPath);
 		const mimeType = options.mimeType || this.guessMimeType(localPath);
 
+		// Map convert option to Google Workspace mimeType
+		const targetMimeType = options.convertTo ? this.getConvertMimeType(options.convertTo) : undefined;
+
+		// Strip extension when converting, but preserve dotfiles (e.g., .env)
+		const { name: baseName, ext } = path.parse(fileName);
+		const uploadName = targetMimeType && ext ? baseName : fileName;
+
 		const fileMetadata: drive_v3.Schema$File = {
-			name: fileName,
+			name: uploadName,
+			mimeType: targetMimeType,
 			parents: options.folderId ? [options.folderId] : undefined,
 		};
 
@@ -223,13 +231,43 @@ export class DriveService {
 			body: fs.createReadStream(localPath),
 		};
 
-		const response = await drive.files.create({
-			requestBody: fileMetadata,
-			media,
-			fields: "id, name, mimeType, size, webViewLink",
-		});
+		try {
+			const response = await drive.files.create({
+				requestBody: fileMetadata,
+				media,
+				fields: "id, name, mimeType, size, webViewLink",
+			});
 
-		return response.data;
+			return response.data;
+		} catch (e) {
+			// Provide clearer error for conversion failures
+			if (options.convertTo && e instanceof Error) {
+				const status = (e as NodeJS.ErrnoException & { code?: number }).code;
+				if (status === 400 || status === 403) {
+					throw new Error(
+						`Conversion to ${options.convertTo} failed: ${e.message}. ` +
+							"Note: Some conversions (e.g., Markdown to Docs) require a Google Workspace account.",
+					);
+				}
+			}
+			throw e;
+		}
+	}
+
+	private getConvertMimeType(convertTo: string): string {
+		const mimeTypes: Record<string, string> = {
+			docs: "application/vnd.google-apps.document",
+			doc: "application/vnd.google-apps.document",
+			sheets: "application/vnd.google-apps.spreadsheet",
+			sheet: "application/vnd.google-apps.spreadsheet",
+			slides: "application/vnd.google-apps.presentation",
+			slide: "application/vnd.google-apps.presentation",
+		};
+		const result = mimeTypes[convertTo.toLowerCase()];
+		if (!result) {
+			throw new Error(`Unknown convert type: ${convertTo}. Use: docs, sheets, or slides`);
+		}
+		return result;
 	}
 
 	private guessMimeType(filePath: string): string {
@@ -254,6 +292,7 @@ export class DriveService {
 			".zip": "application/zip",
 			".csv": "text/csv",
 			".md": "text/markdown",
+			".mdx": "text/markdown",
 		};
 		return mimeTypes[ext] || "application/octet-stream";
 	}
