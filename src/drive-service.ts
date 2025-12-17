@@ -110,7 +110,9 @@ export class DriveService {
 			pageSize: options.maxResults || 20,
 			pageToken: options.pageToken,
 			orderBy: options.orderBy || "modifiedTime desc",
-			fields: "nextPageToken, files(id, name, mimeType, size, modifiedTime, parents, webViewLink)",
+			fields: "nextPageToken, files(id, name, mimeType, size, modifiedTime, parents, webViewLink, driveId)",
+			supportsAllDrives: true,
+			includeItemsFromAllDrives: true,
 		});
 
 		return {
@@ -123,7 +125,9 @@ export class DriveService {
 		const drive = this.getDriveClient(email);
 		const response = await drive.files.get({
 			fileId,
-			fields: "id, name, mimeType, size, modifiedTime, createdTime, parents, webViewLink, description, starred",
+			fields:
+				"id, name, mimeType, size, modifiedTime, createdTime, parents, webViewLink, description, starred, driveId",
+			supportsAllDrives: true,
 		});
 		return response.data;
 	}
@@ -154,7 +158,7 @@ export class DriveService {
 				const response = await drive.files.export({ fileId, mimeType: exportMimeType }, { responseType: "stream" });
 
 				const ext = this.getExportExtension(exportMimeType);
-				const exportPath = filePath.replace(/\.[^.]+$/, "") + ext;
+				const exportPath = filePath.replace(/\.[^./]+$/, "") + ext;
 
 				const dest = fs.createWriteStream(exportPath);
 				await new Promise<void>((resolve, reject) => {
@@ -167,7 +171,10 @@ export class DriveService {
 				return { success: true, path: exportPath, size: stats.size };
 			}
 			// Download regular files
-			const response = await drive.files.get({ fileId, alt: "media" }, { responseType: "stream" });
+			const response = await drive.files.get(
+				{ fileId, alt: "media", supportsAllDrives: true },
+				{ responseType: "stream" },
+			);
 
 			const dest = fs.createWriteStream(filePath);
 			await new Promise<void>((resolve, reject) => {
@@ -226,7 +233,8 @@ export class DriveService {
 		const response = await drive.files.create({
 			requestBody: fileMetadata,
 			media,
-			fields: "id, name, mimeType, size, webViewLink",
+			fields: "id, name, mimeType, size, webViewLink, driveId",
+			supportsAllDrives: true,
 		});
 
 		return response.data;
@@ -260,7 +268,7 @@ export class DriveService {
 
 	async delete(email: string, fileId: string): Promise<void> {
 		const drive = this.getDriveClient(email);
-		await drive.files.delete({ fileId });
+		await drive.files.delete({ fileId, supportsAllDrives: true });
 	}
 
 	async mkdir(email: string, name: string, parentId?: string): Promise<DriveFile> {
@@ -274,7 +282,8 @@ export class DriveService {
 
 		const response = await drive.files.create({
 			requestBody: fileMetadata,
-			fields: "id, name, mimeType, webViewLink",
+			fields: "id, name, mimeType, webViewLink, driveId",
+			supportsAllDrives: true,
 		});
 
 		return response.data;
@@ -291,7 +300,8 @@ export class DriveService {
 			fileId,
 			addParents: newParentId,
 			removeParents: previousParents,
-			fields: "id, name, mimeType, parents, webViewLink",
+			fields: "id, name, mimeType, parents, webViewLink, driveId",
+			supportsAllDrives: true,
 		});
 
 		return response.data;
@@ -303,7 +313,8 @@ export class DriveService {
 		const response = await drive.files.update({
 			fileId,
 			requestBody: { name: newName },
-			fields: "id, name, mimeType, webViewLink",
+			fields: "id, name, mimeType, webViewLink, driveId",
+			supportsAllDrives: true,
 		});
 
 		return response.data;
@@ -331,12 +342,14 @@ export class DriveService {
 			fileId,
 			requestBody: permission,
 			fields: "id",
+			supportsAllDrives: true,
 		});
 
 		// Get the shareable link
 		const file = await drive.files.get({
 			fileId,
 			fields: "webViewLink",
+			supportsAllDrives: true,
 		});
 
 		return {
@@ -347,7 +360,7 @@ export class DriveService {
 
 	async unshare(email: string, fileId: string, permissionId: string): Promise<void> {
 		const drive = this.getDriveClient(email);
-		await drive.permissions.delete({ fileId, permissionId });
+		await drive.permissions.delete({ fileId, permissionId, supportsAllDrives: true });
 	}
 
 	async listPermissions(
@@ -358,6 +371,7 @@ export class DriveService {
 		const response = await drive.permissions.list({
 			fileId,
 			fields: "permissions(id, type, role, emailAddress)",
+			supportsAllDrives: true,
 		});
 
 		return (response.data.permissions || []).map((p) => ({
@@ -378,7 +392,9 @@ export class DriveService {
 			q,
 			pageSize: maxResults,
 			pageToken,
-			fields: "nextPageToken, files(id, name, mimeType, size, modifiedTime, parents, webViewLink)",
+			fields: "nextPageToken, files(id, name, mimeType, size, modifiedTime, parents, webViewLink, driveId)",
+			supportsAllDrives: true,
+			includeItemsFromAllDrives: true,
 		});
 
 		return {
