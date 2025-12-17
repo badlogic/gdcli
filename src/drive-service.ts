@@ -158,7 +158,7 @@ export class DriveService {
 				const response = await drive.files.export({ fileId, mimeType: exportMimeType }, { responseType: "stream" });
 
 				const ext = this.getExportExtension(exportMimeType);
-				const exportPath = filePath.replace(/\.[^.]+$/, "") + ext;
+				const exportPath = filePath.replace(/\.[^./]+$/, "") + ext;
 
 				const dest = fs.createWriteStream(exportPath);
 				await new Promise<void>((resolve, reject) => {
